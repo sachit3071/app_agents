@@ -1,0 +1,49 @@
+name: Trigger auto deployment for container-app-agent-app
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ main ]
+    paths:
+    - '**'
+    - '.github/workflows/container-app-agent-app-AutoDeployTrigger-7aeaaf86-fe49-4ac2-bd2c-623d7885426f.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.CONTAINERAPPAGENTAPP_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.CONTAINERAPPAGENTAPP_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.CONTAINERAPPAGENTAPP_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          _targetLabelKey_: _targetLabel_
+          registryUrl: docker.io
+          registryUsername: ${{ secrets.CONTAINERAPPAGENTAPP_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.CONTAINERAPPAGENTAPP_REGISTRY_PASSWORD }}
+          containerAppName: container-app-agent-app
+          resourceGroup: rg-app-agents
+          imageToBuild: sachit3071/container-app-agent-app:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
