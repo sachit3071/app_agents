@@ -3,7 +3,7 @@ name: Deploy to Azure VM
 on:
   push:
     tags:
-      - 'v*' # Trigger only on tags starting with v
+      - 'v-*'
 
 jobs:
   build-and-deploy:
@@ -28,7 +28,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_IP }}
-          username: azureuser # Replace with your VM username
+          username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
             sudo docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
@@ -36,3 +36,4 @@ jobs:
             sudo docker rm my-app || true
             sudo docker pull ${{ secrets.ACR_LOGIN_SERVER }}/app:${{ github.ref_name }}
             sudo docker run -d --name my-app -p 80:80 ${{ secrets.ACR_LOGIN_SERVER }}/app:${{ github.ref_name }}
+
