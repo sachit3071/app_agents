@@ -1,4 +1,38 @@
+name: Deploy to Azure VM
+
 on:
   push:
     tags:
-      - 'v*' # Triggers for tags starting with v (e.g., v1.0)
+      - 'v*' # Trigger only on tags starting with v
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and Push Image
+        run: |
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/app:${{ github.ref_name }} .
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/app:${{ github.ref_name }}
+
+      - name: SSH and Update VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_IP }}
+          username: azureuser # Replace with your VM username
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            sudo docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} -p ${{ secrets.ACR_PASSWORD }}
+            sudo docker stop my-app || true
+            sudo docker rm my-app || true
+            sudo docker pull ${{ secrets.ACR_LOGIN_SERVER }}/app:${{ github.ref_name }}
+            sudo docker run -d --name my-app -p 80:80 ${{ secrets.ACR_LOGIN_SERVER }}/app:${{ github.ref_name }}
